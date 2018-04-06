@@ -1,0 +1,50 @@
+---
+- name: "Upgrade master config files in masters"
+  replace:
+      path: "{{ master_config }}"
+      regexp: '{{ ovs_plugin_old }}'
+      replace: '{{ ovs_plugin_new }}'
+      backup: yes
+  register: master_cfg_update
+
+- name: "Upgrade nodes config files in masters"
+  replace:
+      path: "{{ node_config }}"
+      regexp: '{{ ovs_plugin_old }}'
+      replace: '{{ ovs_plugin_new }}'
+      backup: yes
+  register: node_cfg_update
+
+# We don't need to restart etcd service here
+- name: "Restart master services"
+  systemd: 
+      name: "{{ item }}"
+      state: restarted
+  with_items: "{{ origin_master_svc }}"
+  when: master_cfg_update.changed or node_cfg_update.changed 
+
+- name: "Pause 5 seconds between master and node services restart"
+  pause:
+      seconds: 5
+  when: master_cfg_update.changed or node_cfg_update.changed 
+
+# Systemd can return a false error even if the service has restarted. To prevent this
+# behaviour the no_block option is used
+- name: "Restart node service"
+  systemd: 
+      name: "{{ origin_node_svc }}"
+      state: restarted
+      no_block: true
+  when: master_cfg_update.changed or node_cfg_update.changed
+
+- name: "Restart docker service"
+  systemd: 
+      name: "{{ docker_svc }}"
+      state: restarted
+  when: master_cfg_update.changed or node_cfg_update.changed 
+
+- name: "Restart openvswitch service"
+  systemd: 
+      name: "{{ ovs_svc }}"
+      state: restarted
+  when: master_cfg_update.changed or node_cfg_update.changed 

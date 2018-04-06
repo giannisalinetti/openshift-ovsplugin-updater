@@ -1,0 +1,15 @@
+---
+ovs_plugin_old: openshift-ovs-subnet
+ovs_plugin_new: openshift-ovs-multitenant
+origin_master_svc:
+  - origin-master-api.service
+  - origin-master-controllers.service
+enterprise_master_svc:
+  - atomic-openshift-master-api.service
+  - atomic-openshift-master-controllers.service
+origin_node_svc: origin-node.service
+enterprise_node_svc: atomic-openshift-node.service
+docker_svc: docker.service
+ovs_svc: openvswitch.service
+master_config: /etc/origin/master/master-config.yaml
+node_config: /etc/origin/node/node-config.yaml

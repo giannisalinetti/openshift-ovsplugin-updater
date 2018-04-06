@@ -1,0 +1,41 @@
+---
+- name: "Node become unschedulable before update"
+  command: "oc adm manage-node {{ inventory_hostname }} --schedulable=false"
+  delegate_to: localhost
+
+- name: "Evacuate all pods from node"
+  command: "oc adm drain {{ inventory_hostname }} --ignore-daemonsets=true --delete-local-data=true"
+  delegate_to: localhost
+
+- name: "Upgrade nodes config files in nodes"
+  replace:
+      path: "{{ node_config }}"
+      regexp: '{{ ovs_plugin_old }}'
+      replace: '{{ ovs_plugin_new }}'
+      backup: yes
+  register: node_cfg_update
+
+# Systemd can return a false error even if the service has restarted. To prevent this
+# behaviour the no_block option is used
+- name: "Restart origin-node service"
+  systemd: 
+      name: "{{ origin_node_svc }}"
+      state: restarted
+      no_block: true
+  when: node_cfg_update.changed
+
+- name: "Restart docker service"
+  systemd: 
+      name: docker
+      state: restarted
+  when: node_cfg_update.changed
+
+- name: "Restart openvswitch service"
+  systemd: 
+      name: openvswitch
+      state: restarted
+  when: node_cfg_update.changed
+
+- name: "Node become schedulable after update"
+  command: "oc adm manage-node {{ inventory_hostname }} --schedulable=true"
+  delegate_to: localhost

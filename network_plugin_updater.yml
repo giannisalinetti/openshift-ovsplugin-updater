@@ -1,0 +1,42 @@
+- name: "Update OVS network plugin on OpenShift masters"
+  hosts: masters
+  remote_user: ansible
+  become: true
+  serial: 1
+  vars:
+    distribution: origin
+    # distribution: enterprise
+  vars_files:
+      - vars/network_plugin_vars.yml 
+  tasks:
+      - command: "grep -q '{{ ovs_plugin_new }}' {{ master_config }}"
+        register: checkconf
+        ignore_errors: yes
+        changed_when: no
+        no_log: true
+
+      - include_tasks: tasks/origin_master.yml
+        when: distibution == "origin" and (inventory_hostname in groups['masters'] and checkconf.rc != 0)
+
+      - include_tasks: tasks/enterprise_master.yml
+        when: distibution == "enterprise" and (inventory_hostname in groups['masters'] and checkconf.rc != 0)
+
+- name: "Update OVS network plugin on OpenShift nodes"
+  hosts: nodes
+  remote_user: ansible
+  become: true
+  serial: 1
+  vars_files:
+      - vars/network_plugin_vars.yml 
+  tasks:
+      - command: "grep -q '{{ ovs_plugin_new }}' {{ node_config }}"
+        register: checkconf
+        ignore_errors: yes
+        changed_when: no
+        no_log: true
+
+      - include_tasks: tasks/origin_node.yml
+        when: distibution == "origin" and (inventory_hostname in groups['nodes'] and checkconf.rc != 0)
+
+      - include_tasks: tasks/enterprise_node.yml
+        when: distibution == "enterprise" and (inventory_hostname in groups['nodes'] and checkconf.rc != 0)
